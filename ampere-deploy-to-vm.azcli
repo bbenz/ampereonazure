@@ -1,0 +1,88 @@
+# Create a VM 
+
+# 4 steps: 
+# Step 1: Set up the Environment
+# Step 2: (optional but highly recommended) Create a VNET, and subnet
+# Step 3: Create a VM
+# Step 4: Customize the VM
+
+# Prerequisites: 
+# An azure account with a subscription ID: https://azure.microsoft.com/en-us/free/
+# 1. Install the Azure CLI: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
+
+# Step 1: Set up the Environment: 
+
+export RESOURCE_GROUP_NAME=<your resource group name>
+export LOCATION=<your location>
+export NETWORK_NAME=<your vnet name>
+export NETWORK_SUBNET_NAME=<your subnet name>
+export VM_NAME=<your VM name>
+
+# Set the ARM64 image to use for the VM
+# CLI: Find ARM images: 
+# az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    -o table
+
+# CLI: Find ARM images published by canonical: 
+#az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    --publisher Canonical \
+#    -o table
+
+export sourcearmimage=<your ARM image name>
+export sourcearmimagename=<your ARM image name>
+
+# Step 2: Create a VNET, subnet and VM
+# Create a resource group.
+az group create --resource-group $RESOURCE_GROUP_NAME --location $LOCATION
+
+# Step 2: (optional but highly recommended) Create a VNET, and subnet
+
+# Create vnet
+az network vnet create --resource-group $RESOURCE_GROUP_NAME --location $LOCATION --name $NETWORK_NAME --address-prefixes 172.0.0.0/16
+
+# Create subnet
+az network vnet subnet create --resource-group $RESOURCE_GROUP_NAME --vnet-name $NETWORK_NAME --address-prefixes 172.0.0.0/24 --name $NETWORK_SUBNET_NAME
+ 
+# Step 3: Create a VM
+
+az vm create \
+   --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --name $SOURCE_VM_NAME \
+   --image $sourcearmimagename \
+   --vnet-name $NETWORK_NAME \
+   --subnet $NETWORK_NAME \
+   --public-ip-sku Standard \
+   --generate-ssh-keys \
+   --specialized
+
+# Optional: Open Ports for HTTP access
+   
+az vm open-port --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --name $TARGET_VM_NAME \
+   --port 2222,8080 --priority 100
+
+# Step 4: Customize the VM
+# Example: Install Cassandra on the new VM via the serial console
+
+Ubuntu_release=`lsb_release -rs`
+wget https://packages.microsoft.com/config/ubuntu/${ubuntu_release}/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+
+sudo apt-get install apt-transport-https
+sudo apt-get update
+sudo apt-get install msopenjdk-8
+
+echo "deb http://www.apache.org/dist/cassandra/debian 311x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
+curl https://www.apache.org/dist/cassandra/KEYS | sudo apt-key add -
+sudo apt update
+sudo apt install cassandra
+sudo service cassandra start
+sudo service cassandra status
+cqlsh
+

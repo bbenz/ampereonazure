@@ -1,0 +1,106 @@
+# Create a new Azure Kubernetes Service running Cassandra on an Ampere ARM64 VM
+
+# 4 steps: 
+# Step 1: Set up the Environment
+# Step 2: Create an Azure Kubernetes Service AKS running on ARM64 
+# Step 3: Create an Azure Container Registry (ACR) (Optional)
+# Step 4: Deploy Cassandra to the Aure Kubernetes Service (AKS)
+
+# Prerequisites: 
+# An azure account with a subscription ID: https://azure.microsoft.com/en-us/free/
+# 1. Install the Azure CLI: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
+
+# Step 1: Set up the Environment: 
+
+# For AKS commands: 
+export myResourceGroup=<your resource group name>
+export mylocation=<your location>
+export myAKSCluster=<your AKS cluster name>
+
+# For ACR (Optional)
+export myACRName=<your ACR name>
+export myACRImage=${myACRName}:v1
+
+
+# Set the ARM64 image to use for the VM
+# CLI: Find ARM images: 
+# az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    -o table
+
+# CLI: Find ARM images published by canonical: 
+#az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    --publisher Canonical \
+#    -o table
+
+export sourcearmimage=<your ARM image name>
+export sourcearmimagename=<your ARM image name>
+
+# Create a resource group.
+az group create --resource-group $myResourceGroup --location $mylocation
+
+# Step 2: Create an Azure Kubernetes Service AKS running on ARM64 
+# Choose an Ampere-based Dpsv5, Dplsv5, or Epsv5 VM-series for --node-vm-size
+
+az aks create \
+    --resource-group $myResourceGroup \
+    --name $myAKSCluster \
+    --location $mylocation \
+    --node-vm-size $sourcearmimagename
+    --node-count 1 \
+    --generate-ssh-keys
+
+# Install kubectl in the Azure CLI, connected to AKS
+az aks install-cli
+
+# Get the credentials of the new AKS cluster
+az aks get-credentials --resource-group $myResourceGroup --name $myAKSCluster --overwrite-existing
+
+# Step 3: Create an Azure Container Registry (ACR) (Optional)
+az acr create \
+    --resource-group $myResourceGroup \
+    --name $myACRName \
+    --location $mylocation \
+    --sku Standard \
+    --admin-enabled true
+
+# Log in to the ACR
+az acr login --name $myACRName
+
+# Attach the ACR to the AKS instance 
+
+az aks update -g $myResourceGroup -n $myAKSCluster --attach-acr $myACRName
+
+# Add the current Cassandra arm64 dockerhub image to your ACR
+# Current image: https://hub.docker.com/r/arm64v8/cassandra/
+
+docker pull arm64v8/cassandra
+docker tag arm64v8/cassandra ${myACRName}.azurecr.io/$myACRImage
+docker push ${myACRName}.azurecr.io/$myACRImage
+
+
+# Step 4: Deploy Cassandra to the Aure Kubernetes Service (AKS) 
+
+
+# Option 1 - Deploying from docker hub - Current image: https://hub.docker.com/r/arm64v8/cassandra/
+
+kubectl create -f cassandra-deployment.yaml
+kubectl create -f cassandra-service.yaml
+kubectl get pods -l app=cassandra
+kubectl logs <pod name for cassandra>
+
+# Option 2 - Deploying from ACR
+# Edit cassandra-deployment-from-acr.yaml to specify the ACR repository image to deploy:
+# containers:
+#        - name: cassandra
+#          image: myACRName.azurecr.io/myACRImage:myACRImageVersion
+
+kubectl create -f cassandra-deployment-from-acr.yaml
+kubectl create -f cassandra-service.yaml
+kubectl get pods -l app=cassandra
+kubectl logs <pod name for cassandra>
+
+

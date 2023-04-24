@@ -1,0 +1,152 @@
+# Create a VM then a new image from an Azure compute image gallery, based on an existing VM.  
+
+# 4 steps: 
+# Step 1: Set up the Environment
+# Step 2: Create a VNET, subnet and VM
+# Step 3: Create a new customized VM image in an Azure compute gallery, based on the VM you just created.
+# Step 4: Create a VM from the image gallery 
+
+# Prerequisites: 
+# An azure account with a subscription ID: https://azure.microsoft.com/en-us/free/
+# 1. Install the Azure CLI: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
+
+# Step 1: Set up the Environment: 
+
+export RESOURCE_GROUP_NAME=<your resource group name>
+export LOCATION=<your location>
+export NETWORK_SUBNET_NAME=<your subnet name>
+export NETWORK_NAME=<your vnet name>
+export NETWORK_SECURITY_GROUP=<your NSG name>
+export VM_NAME=<your VM name>
+export SOURCE_VM_NAME=<your source VM name>
+export SOURCE_RESOURCE_GROUP_NAME=<your source resource group name>
+export TARGET_VM_NAME=<your target VM name>
+export VM_IMAGE=<your VM image name>
+export VM_IMAGE_VERSION=<your VM image version>
+export IMAGE_GALLERY_NAME=<your image gallery name>
+
+
+# Set the current subscription ID
+# CLI: az account image show
+export SUBSCRIPTION_ID=<your subscription ID: az account image show>
+
+# Set the ARM64 image to use for the VM
+# CLI: Find ARM images: 
+# az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    -o table
+
+# CLI: Find ARM images published by canonical: 
+#az vm image list \
+#    --all \
+#    --architecture Arm64 \
+#    --publisher Canonical \
+#    -o table
+
+export sourcearmimage=<your ARM image name>
+export sourcearmimagename=<your ARM image name>
+
+# Step 2: Create a VNET, subnet and VM
+# Create a resource group.
+az group create --resource-group $RESOURCE_GROUP_NAME --location $LOCATION
+
+# create vnet
+az network vnet create --resource-group $RESOURCE_GROUP_NAME --location $LOCATION --name $NETWORK_NAME --address-prefixes 172.0.0.0/16
+
+# create subnet
+az network vnet subnet create --resource-group $RESOURCE_GROUP_NAME --vnet-name $NETWORK_NAME --address-prefixes 172.0.0.0/24 --name $NETWORK_SUBNET_NAME
+ 
+# Create a VM 
+az vm create \
+   --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --name $SOURCE_VM_NAME \
+   --image $sourcearmimagename \
+   --vnet-name $NETWORK_NAME \
+   --subnet $NETWORK_NAME \
+   --public-ip-sku Standard \
+   --generate-ssh-keys \
+   --specialized
+
+# Install Cassandra on the new VM via the serial console
+
+Ubuntu_release=`lsb_release -rs`
+wget https://packages.microsoft.com/config/ubuntu/${ubuntu_release}/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+
+sudo apt-get install apt-transport-https
+sudo apt-get update
+sudo apt-get install msopenjdk-8
+
+echo "deb http://www.apache.org/dist/cassandra/debian 311x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
+curl https://www.apache.org/dist/cassandra/KEYS | sudo apt-key add -
+sudo apt update
+sudo apt install cassandra
+sudo service cassandra start
+sudo service cassandra status
+cqlsh
+
+# Step 3: Create a new customized VM image in an Azure compute gallery, based on the VM you just created.
+
+# Create an Azure Compute image gallery.
+az sig create --resource-group $RESOURCE_GROUP_NAME --gallery-name $IMAGE_GALLERY_NAME
+
+# Create the Image Definition and add it to the gallery
+
+az sig image-definition create \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --gallery-name $IMAGE_GALLERY_NAME \
+    --gallery-image-definition $VM_IMAGE \
+    --publisher Canonical \
+    --offer UbuntuServer \
+    --sku ${sourcearmimagename} \
+    --os-type Linux \
+    --os-state specialized \
+    --hyper-v-generation V2 \
+    --architecture Arm64
+
+
+# Get the ID of the source VM to use as an image, save the result for the az sig image-version create command below.
+az vm get-instance-view -g $RESOURCE_GROUP_NAME -n $VM_NAME --query id
+
+# Create the Image Version
+# Change the version number when adding an additional version
+az sig image-version create \
+   --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --gallery-name $IMAGE_GALLERY_NAME \
+   --gallery-image-definition $VM_IMAGE \
+   --gallery-image-version $VM_IMAGE_VERSION \
+   --target-regions "East US" \
+   --replica-count 1 \
+   --virtual-machine "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${SOURCE_RESOURCE_GROUP_NAME}/providers/Microsoft.Compute/virtualMachines/${SOURCE_VM_NAME}"
+
+
+
+# Step 4: Create a VM from the image gallery 
+
+az vm create \
+   --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --name $TARGET_VM_NAME \
+   --image "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.Compute/galleries/${IMAGE_GALLERY_NAME}/images/${IMAGE_GALLERY_NAME}" \
+   --vnet-name $NETWORK_NAME \
+   --subnet $NETWORK_NAME \
+   --public-ip-sku Standard \
+   --generate-ssh-keys \
+   --specialized
+
+# Switch to a browser, show the created VM
+https://portal.azure.com/?feature.customportal=false#@microsoft.onmicrosoft.com/resource/subscriptions/c5bd7244-ab30-4473-8e88-d4d58b246c94/resourceGroups/armvmdemo/providers/Microsoft.Compute/virtualMachines/armvmfromgallery/overview
+
+
+# Connect to the VM via the serial console, show the running app 
+
+# Optional: Open Ports for HTTP access
+   
+az vm open-port --resource-group $RESOURCE_GROUP_NAME \
+   --location $LOCATION \
+   --name $TARGET_VM_NAME \
+   --port 2222,8080 --priority 100
