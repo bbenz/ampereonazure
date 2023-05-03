@@ -8,7 +8,7 @@ In this repo:
 
 [Create and Customize an ARM64 Azure VM from an Azure Compute Gallery](vm/ampere-deploy-to-vm-with-gallery.md)
 
-[Create a new Azure Kubernetes Service on Ampere ARM64 VMs](aks/ampere-deploy-to-aks.md)
+[Create a new Azure Kubernetes Service on Ampere ARM64 VMs](aks/ampere-deploy-to-aks.md) 
 
 
 Links: 
