@@ -1,7 +1,19 @@
-# ampereonazure
-Details on how to deploy Ampere Altra Arm–based processors on Azure for Azure Virtual Machines and Azure Kubernetes Service.  Use the .azcli scripts as a template to deploy to Azure VMs and Azure Kubernetes Service.  
+# Ampere on Azure
+
+This repo contains Details and documentation on how to deploy Ampere Altra Arm–based processors on Azure for Azure Virtual Machines and Azure Kubernetes Service.  Use the .azcli scripts as a template to deploy to Azure VMs and Azure Kubernetes Service.  
+
+In this repo: 
+
+[Create and Customize an ARM64 Azure VM](vm\ampere-deploy-to-vm.md)
+
+[Create and Customize an ARM64 Azure VM from an Azure Compute Gallery](vm\ampere-deploy-to-vm-with-gallery.md)
+
+[Create a new Azure Kubernetes Service on Ampere ARM64 VMs](aks\ampere-deploy-to-aks.md)
+
 
 Links: 
+
+☁️ <a href='https://https://amperecomputing.com/developers' target='_blank'>Azure developer center</a> 
 
 ☁️ <a href='https://azure.microsoft.com/en-us/blog/azure-virtual-machines-with-ampere-altra-arm-based-processors-generally-available/' target='_blank'>Azure blog Ampere Announcement</a> 
 

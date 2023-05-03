@@ -20,17 +20,17 @@ export VM_NAME=<your VM name>
 
 # Set the ARM64 image to use for the VM
 # CLI: Find ARM images: 
-# az vm image list \
-#    --all \
-#    --architecture Arm64 \
-#    -o table
+az vm image list \
+    --all \
+    --architecture Arm64 \
+    -o table
 
 # CLI: Find ARM images published by canonical: 
-#az vm image list \
-#    --all \
-#    --architecture Arm64 \
-#    --publisher Canonical \
-#    -o table
+az vm image list \
+    --all \
+    --architecture Arm64 \
+    --publisher Canonical \
+    -o table
 
 export sourcearmimage=<your ARM image name>
 export sourcearmimagename=<your ARM image name>
