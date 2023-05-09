@@ -1,6 +1,5 @@
 # Create a new Azure Kubernetes Service running on Ampere ARM64 VMs
 
-[Watch the recording - Kubernetes Service on Ampere ARM64 - YouTube](https://youtu.be/whmeSGpnPdA)
 
 This guide will walk you through the process of creating an Azure Kubernetes Service (AKS) running Cassandra on an Ampere ARM64 VM in 4 steps:
 
@@ -9,6 +8,8 @@ This guide will walk you through the process of creating an Azure Kubernetes Ser
 3. Create an Azure Container Registry (ACR) (Optional)
 4. Deploy Cassandra to the Azure Kubernetes Service (AKS)
 
+## Watch the recording:
+[![Watch the recording](/images/brian-aks-ampere.png)](https://youtu.be/whmeSGpnPdA)
 
 ## Prerequisites
 
